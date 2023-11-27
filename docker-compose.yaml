@@ -9,7 +9,7 @@ services:
       - mongo
       - redis
     networks:
-      - cloudflare_overlay
+      - cloudflare_internal
       - local_overlay
       - swapi_internal
     environment:
@@ -44,15 +44,19 @@ services:
     command: chmod -R 777 /tmp/redis
     volumes:
       - /tmp/redis/
-
-volumes:
-  unix_socket:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TOKEN}
+    depends_on:
+      - swapi
+    networks:
+      - cloudflare_internal
 
 networks:
-  cloudflare_overlay:
-    name: "cloudflare_overlay"
-    driver: overlay
-    external: true
+  cloudflare_internal:
+    name: "cloudflare_internal"
+    driver: bridge
   local_overlay:
     name: "local_overlay"
     driver: overlay
