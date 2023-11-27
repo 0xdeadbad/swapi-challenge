@@ -2,11 +2,36 @@ package httpserver
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"net/netip"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/mongo"
 )
+
+type APIServer struct {
+	HttpServer  *http.Server
+	RedisClient *redis.Client
+	MongoClient *mongo.Client
+}
+
+func NewAPIServer(ctx context.Context, redisClient *redis.Client, mongoClient *mongo.Client, options ...HTTPServerOption) (*APIServer, error) {
+	httpServer, err := newHTTPServer(options...)
+	if err != nil {
+		return nil, err
+	}
+
+	apiServer := &APIServer{
+		HttpServer:  httpServer,
+		RedisClient: redisClient,
+		MongoClient: mongoClient,
+	}
+
+	return apiServer, nil
+}
 
 var defaultTimeout = time.Duration(30 * time.Second)
 var defaultMaxHeaderBytes = 8192
@@ -21,7 +46,7 @@ type httpServerOptions struct {
 
 type HTTPServerOption func(options *httpServerOptions) error
 
-func NewHTTPServer(options ...HTTPServerOption) (*http.Server, error) {
+func newHTTPServer(options ...HTTPServerOption) (*http.Server, error) {
 	var err error
 
 	opts := httpServerOptions{
@@ -40,7 +65,7 @@ func NewHTTPServer(options ...HTTPServerOption) (*http.Server, error) {
 
 	httpServer := &http.Server{
 		Addr:                         opts.addr,
-		Handler:                      nil,
+		Handler:                      opts.handler,
 		DisableGeneralOptionsHandler: false,
 		TLSConfig:                    nil,
 		ReadTimeout:                  *opts.timeout,
@@ -50,6 +75,7 @@ func NewHTTPServer(options ...HTTPServerOption) (*http.Server, error) {
 		MaxHeaderBytes:               *opts.maxHeaderBytes,
 		ErrorLog:                     nil,
 		BaseContext:                  opts.baseContext,
+		TLSNextProto:                 make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
 
 	return httpServer, nil

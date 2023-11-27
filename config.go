@@ -1,6 +1,12 @@
 package main
 
-var optsFlags struct {
+import (
+	"os"
+
+	"github.com/jessevdk/go-flags"
+)
+
+type optionsFlags struct {
 	// Show verbose logging
 	// Verbose [3]bool `short:"v" long:"verbose" description:"Show verbose debug information"`
 
@@ -18,4 +24,44 @@ var optsFlags struct {
 
 	// Redis connection URI
 	RedisURI string `short:"R" long:"redis" description:"URI pointing to Redis" required:"true"`
+
+	// Redis connection type
+	RedisNetwork string `long:"redis-network" description:"URI pointing to Redis" default:"tcp"`
+}
+
+var optsFlags = optionsFlags{}
+
+func (o *optionsFlags) Parse() error {
+	_, err := flags.ParseArgs(&optsFlags, os.Args)
+	if err != nil {
+		if optsFlags.Bind == "" {
+			if env, ok := os.LookupEnv("BIND_ADDRESS"); ok {
+				optsFlags.Bind = env
+			} else {
+				return err
+			}
+		}
+
+		if optsFlags.MongoURI == "" {
+			if env, ok := os.LookupEnv("MONGO_URI"); ok {
+				optsFlags.MongoURI = env
+			} else {
+				return err
+			}
+		}
+
+		if optsFlags.RedisURI == "" {
+			if env, ok := os.LookupEnv("REDIS_URI"); ok {
+				optsFlags.RedisURI = env
+			} else {
+				return err
+			}
+		}
+	}
+
+	if env, ok := os.LookupEnv("REDIS_NETWORK"); ok {
+		optsFlags.RedisNetwork = env
+	}
+
+	return nil
 }

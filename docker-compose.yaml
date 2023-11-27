@@ -1,0 +1,61 @@
+services:
+  swapi:
+    build: .
+    image: swapi:latest
+    container_name: "swapi"
+    volumes_from:
+      - tmp
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - cloudflare_overlay
+      - local_overlay
+      - swapi_internal
+    environment:
+      - BIND_ADDRESS=0.0.0.0:8080
+      - MONGO_URI=mongodb://mongodb:27017
+      - REDIS_URI=/tmp/redis/redis.sock
+      - REDIS_NETWORK=unix
+  mongo:
+    image: mongo:7.0.3-jammy
+    container_name: "mongodb"
+    networks:
+      - local_overlay
+  redis:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM redis:7.2.3-alpine3.18
+        RUN wget https://raw.githubusercontent.com/redis/redis/unstable/redis.conf -O /etc/redis.conf
+        RUN echo "unixsocket /tmp/redis/redis.sock" >> /etc/redis.conf
+        RUN echo "unixsocketperm 777" >> /etc/redis.conf
+        ENTRYPOINT ["docker-entrypoint.sh", "/etc/redis.conf"]
+    image: redis:7.2.3-alpine3.18
+    container_name: "redis"
+    volumes_from:
+      - tmp
+    depends_on:
+      - tmp
+    networks:
+      - swapi_internal
+  tmp:
+    image: busybox
+    command: chmod -R 777 /tmp/redis
+    volumes:
+      - /tmp/redis/
+
+volumes:
+  unix_socket:
+
+networks:
+  cloudflare_overlay:
+    name: "cloudflare_overlay"
+    driver: overlay
+    external: true
+  local_overlay:
+    name: "local_overlay"
+    driver: overlay
+    external: true
+  swapi_internal:
+    driver: bridge

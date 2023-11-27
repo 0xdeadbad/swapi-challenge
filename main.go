@@ -10,17 +10,19 @@ import (
 	"strings"
 	"syscall"
 
-	"swapi/api"
-	httpserver "swapi/api/server"
+	"swapi-challenge/api"
+	httpserver "swapi-challenge/api/server"
 
-	"github.com/jessevdk/go-flags"
 	"github.com/pkg/profile"
+	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/mongo"
+	mongoOptions "go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/sync/errgroup"
 )
 
 func main() {
 
-	_, err := flags.ParseArgs(&optsFlags, os.Args)
+	err := optsFlags.Parse()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -37,6 +39,12 @@ func main() {
 
 		case "CPU":
 			defer profile.Start(profile.CPUProfile, profile.NoShutdownHook, profile.ProfilePath(".")).Stop()
+
+		case "TRAC":
+			defer profile.Start(profile.TraceProfile, profile.NoShutdownHook, profile.ProfilePath(".")).Stop()
+
+		case "GORO":
+			defer profile.Start(profile.GoroutineProfile, profile.NoShutdownHook, profile.ProfilePath(".")).Stop()
 
 		default:
 			log.Fatalf("invalid %s profiling parameter", prof)
@@ -77,7 +85,29 @@ main_loop:
 				}
 			}()
 
-			return api.Start(goroutineCtx, goroutineCancel, httpserver.WithAddress(&bindAddr), httpserver.WithMaxHeaderBytes(4096), httpserver.WithHandler(api.Router()))
+			redisClient := redis.NewClient(&redis.Options{
+				Addr:    optsFlags.RedisURI,
+				Network: optsFlags.RedisNetwork,
+			})
+			_, err := redisClient.Ping(ctx).Result()
+			if err != nil {
+				return err
+			}
+			defer redisClient.Close()
+
+			mongoClient, err := mongo.Connect(ctx, mongoOptions.Client().ApplyURI(optsFlags.MongoURI))
+			if err != nil {
+				return err
+			}
+			defer mongoClient.Disconnect(context.Background())
+
+			return api.Start(goroutineCtx, goroutineCancel,
+				redisClient,
+				mongoClient,
+				httpserver.WithAddress(&bindAddr),
+				httpserver.WithMaxHeaderBytes(4096),
+				httpserver.WithHandler(api.Router(redisClient, mongoClient)),
+			)
 		})
 
 		select {
@@ -151,3 +181,6 @@ func (e SWAPIError) String() string {
 func (e SWAPIError) Error() string {
 	return e.String()
 }
+
+type ReqKey string
+type ReqValue any
