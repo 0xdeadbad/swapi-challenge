@@ -8,11 +8,12 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	httpclient "swapi-challenge/api/client"
 
 	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
+
+	"swapi-challenge/client"
 )
 
 type Person struct {
@@ -38,7 +39,7 @@ func newPeopleApiHandler(r *mux.Router, coll *mongo.Collection, redisClient *red
 
 func (h *PeopleApiHandler) peopleApiEndpoint(w http.ResponseWriter, req *http.Request) {
 
-	httpClient, err := httpclient.NewHTTPClient()
+	httpClient, err := client.NewHTTPClient()
 	if err != nil {
 		logger.Log(req.Context(), slog.LevelInfo, fmt.Sprintf("%s", err))
 		w.WriteHeader(http.StatusInternalServerError)

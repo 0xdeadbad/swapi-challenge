@@ -2,15 +2,15 @@ package api
 
 import (
 	"context"
-	httpserver "swapi-challenge/api/server"
+	"swapi-challenge/server"
 
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func Start(ctx context.Context, cancel context.CancelCauseFunc, redisClient *redis.Client, mongoClient *mongo.Client, options ...httpserver.HTTPServerOption) error {
+func Start(ctx context.Context, cancel context.CancelCauseFunc, redisClient *redis.Client, mongoClient *mongo.Client, options ...server.HTTPServerOption) error {
 
-	apiServer, err := httpserver.NewAPIServer(ctx, redisClient, mongoClient, options...)
+	apiServer, err := server.NewAPIServer(ctx, redisClient, mongoClient, options...)
 	if err != nil {
 		return err
 	}

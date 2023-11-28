@@ -13,7 +13,7 @@ import (
 	"syscall"
 
 	"swapi-challenge/api"
-	httpserver "swapi-challenge/api/server"
+	"swapi-challenge/server"
 
 	"github.com/pkg/profile"
 	"github.com/redis/go-redis/v9"
@@ -85,13 +85,13 @@ func main() {
 	err = api.Start(ctx, cancel,
 		redisClient,
 		mongoClient,
-		httpserver.WithAddress(&bindAddr),
-		httpserver.WithMaxHeaderBytes(4096),
-		httpserver.WithHandler(api.Router(redisClient, mongoClient)),
+		server.WithAddress(&bindAddr),
+		server.WithMaxHeaderBytes(4096),
+		server.WithHandler(api.Router(redisClient, mongoClient)),
 	)
 
 	if err != nil && err != context.Canceled && err != http.ErrServerClosed {
-		fatalLogger(ctx.Err().Error())
+		fatalLogger(err.Error())
 	}
 
 	if ctx.Err() != nil && ctx.Err() != http.ErrServerClosed && ctx.Err() != context.Canceled {
