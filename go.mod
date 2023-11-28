@@ -3,6 +3,7 @@ module swapi-challenge
 go 1.21.4
 
 require (
+	github.com/gorilla/mux v1.8.1
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/pkg/profile v1.7.0
 	github.com/redis/go-redis/v9 v9.3.0
