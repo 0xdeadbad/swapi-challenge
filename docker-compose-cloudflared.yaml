@@ -9,19 +9,19 @@ services:
       - mongo
       - redis
     networks:
+      - cloudflare_internal
+      - local_overlay
       - swapi_internal
     environment:
       - BIND_ADDRESS=0.0.0.0:8080
       - MONGO_URI=mongodb://mongodb:27017
       - REDIS_URI=/tmp/redis/redis.sock
       - REDIS_NETWORK=unix
-    ports:
-      - 127.0.0.1:8080:8080
   mongo:
     image: mongo:7.0.3-jammy
     container_name: "mongodb"
     networks:
-      - swapi_internal
+      - local_overlay
   redis:
     build:
       context: .
@@ -31,7 +31,7 @@ services:
         RUN echo "unixsocket /tmp/redis/redis.sock" >> /etc/redis.conf
         RUN echo "unixsocketperm 777" >> /etc/redis.conf
         ENTRYPOINT ["docker-entrypoint.sh", "/etc/redis.conf"]
-    image: redis:7.2.3-alpine3.18-unixsock
+    image: redis:7.2.3-alpine3.18
     container_name: "redis"
     volumes_from:
       - tmp
@@ -44,7 +44,22 @@ services:
     command: chmod -R 777 /tmp/redis
     volumes:
       - /tmp/redis/
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TOKEN}
+    depends_on:
+      - swapi
+    networks:
+      - cloudflare_internal
 
 networks:
+  cloudflare_internal:
+    name: "cloudflare_internal"
+    driver: bridge
+  local_overlay:
+    name: "local_overlay"
+    driver: overlay
+    external: true
   swapi_internal:
     driver: bridge
