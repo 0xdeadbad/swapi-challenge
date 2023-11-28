@@ -87,7 +87,7 @@ func main() {
 		mongoClient,
 		server.WithAddress(&bindAddr),
 		server.WithMaxHeaderBytes(4096),
-		server.WithHandler(api.Router(redisClient, mongoClient)),
+		server.WithHandler(api.NewAPIRouter(redisClient, mongoClient)),
 	)
 
 	if err != nil && err != context.Canceled && err != http.ErrServerClosed {

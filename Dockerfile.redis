@@ -1,0 +1,18 @@
+FROM rust:1.74-bookworm AS builder
+
+WORKDIR /RedisJSON-2.6.8
+
+RUN apt update && apt-get install -y clang
+RUN wget https://github.com/RedisJSON/RedisJSON/archive/refs/tags/v2.6.8.tar.gz -O - | tar xvz --strip-components=1 -C .
+RUN cargo build --release
+
+FROM redis:7.2.3-bookworm
+
+COPY --from=builder /RedisJSON-2.6.8/target/release/librejson.so /usr/lib/librejson.so
+RUN apt update && apt install -y wget tar
+RUN wget https://raw.githubusercontent.com/redis/redis/unstable/redis.conf -O /etc/redis.conf
+RUN echo "unixsocket /tmp/redis/redis.sock" >> /etc/redis.conf
+RUN echo "unixsocketperm 777" >> /etc/redis.conf
+RUN echo "loadmodule /usr/lib/librejson.so" >> /etc/redis.conf
+
+ENTRYPOINT ["docker-entrypoint.sh", "/etc/redis.conf"]

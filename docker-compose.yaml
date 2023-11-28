@@ -1,6 +1,8 @@
 services:
   swapi:
-    build: .
+    build:
+      context: .
+      dockerfile: ./Dockerfile.swapi
     image: swapi:latest
     container_name: "swapi"
     volumes_from:
@@ -25,13 +27,8 @@ services:
   redis:
     build:
       context: .
-      dockerfile_inline: |
-        FROM redis:7.2.3-alpine3.18
-        RUN wget https://raw.githubusercontent.com/redis/redis/unstable/redis.conf -O /etc/redis.conf
-        RUN echo "unixsocket /tmp/redis/redis.sock" >> /etc/redis.conf
-        RUN echo "unixsocketperm 777" >> /etc/redis.conf
-        ENTRYPOINT ["docker-entrypoint.sh", "/etc/redis.conf"]
-    image: redis:7.2.3-alpine3.18-unixsock
+      dockerfile: ./Dockerfile.redis
+    image: redis:7.2.3-alpine3.18-custom
     container_name: "redis"
     volumes_from:
       - tmp
