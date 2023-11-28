@@ -1,18 +1,29 @@
-FROM rust:1.74-bookworm AS builder
+FROM rust:1.74-bookworm AS builder-rejson
 
 WORKDIR /RedisJSON-2.6.8
-
-RUN apt update && apt-get install -y clang
+RUN apt-get update && apt-get install -y clang wget tar curl
 RUN wget https://github.com/RedisJSON/RedisJSON/archive/refs/tags/v2.6.8.tar.gz -O - | tar xvz --strip-components=1 -C .
 RUN cargo build --release
 
+FROM debian:bullseye AS builder-research
+
+WORKDIR /RediSearch
+RUN apt update && apt-get install -y git build-essential python3 python3-pip python3-venv sed wget tar curl 
+RUN git clone --recursive https://github.com/RediSearch/RediSearch /RediSearch
+RUN python3 -m venv .venv && sed -i 's/include-system-site-packages = false/include-system-site-packages = true/g' .venv/pyvenv.cfg && . .venv/bin/activate && python3 -m pip install -U pip
+ENV PATH="/RediSearch/.venv/bin:$PATH"
+RUN make setup
+RUN make build
+
 FROM redis:7.2.3-bookworm
 
-COPY --from=builder /RedisJSON-2.6.8/target/release/librejson.so /usr/lib/librejson.so
+COPY --from=builder-rejson /RedisJSON-2.6.8/target/release/librejson.so /usr/lib/librejson.so
+COPY --from=builder-research /RediSearch/bin/linux-x64-release/search/redisearch.so /usr/lib/redisearch.so
 RUN apt update && apt install -y wget tar
 RUN wget https://raw.githubusercontent.com/redis/redis/unstable/redis.conf -O /etc/redis.conf
 RUN echo "unixsocket /tmp/redis/redis.sock" >> /etc/redis.conf
 RUN echo "unixsocketperm 777" >> /etc/redis.conf
 RUN echo "loadmodule /usr/lib/librejson.so" >> /etc/redis.conf
+RUN echo "loadmodule /usr/lib/redisearch.so" >> /etc/redis.conf
 
 ENTRYPOINT ["docker-entrypoint.sh", "/etc/redis.conf"]
